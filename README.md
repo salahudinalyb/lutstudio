@@ -7,6 +7,7 @@ Apply LUT filters to your photos right in the browser. Add photos, pick a filter
 - **3D LUT filters** from `.cube` files or **HALD CLUT** images (`.png`). Import them with the button or drop them anywhere on the page.
 - **Before / after** in three modes: Split (draggable divider), Side by side, and Result. Press and hold the photo, or hold `B`, to see the original.
 - **Intensity from 0 to 100%.** Click the active filter again to adjust it.
+- **Consistency** evens out a set before (or after) the filter. **Auto** brings every photo to the same exposure, contrast, white balance and saturation. **Match photo** follows a reference: either one of your photos, or an uploaded, already-edited image such as a post whose look you like. An uploaded reference is matched after the filter and is remembered in the browser.
 - **Batch editing.** Each photo keeps its own filter, or you can apply one filter to all of them.
 - **Export** as JPG, PNG, or WebP, at quality up to 100, in original size or Instagram's 1080 px. Download all photos at once as a single ZIP.
 - **Zoom and pan** with scroll, pinch, or double-tap. The canvas background can be dark, neutral gray, or white.
