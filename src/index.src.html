@@ -396,7 +396,7 @@
       <div class="progress" id="expProgress"><i></i></div>
     </div>
     <div class="dlg-foot">
-      <button type="button" class="btn" id="btnDlAll" hidden>Download all</button>
+      <button type="button" class="btn" id="btnDlAll" hidden>Download all as ZIP</button>
       <button type="button" class="btn primary" id="btnDl">Download this photo</button>
     </div>
   </form>
@@ -917,14 +917,45 @@ async function downloadOne(){
   catch(e){ console.error(e); toast(e.message,{err:true}); }
   busy(false);
 }
+/* minimal ZIP writer (store, no re-compression: JPG/PNG/WebP are already compressed) */
+const CRC_T=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+function crc32(u8){ let c=0xFFFFFFFF; for(let i=0;i<u8.length;i++) c=CRC_T[(c^u8[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){
+  const enc=new TextEncoder(), now=new Date(), parts=[], central=[]; let off=0;
+  const dt=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1), dd=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  for(const f of files){
+    const nm=enc.encode(f.name), crc=crc32(f.data), sz=f.data.length;
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true);
+    h.setUint16(10,dt,true); h.setUint16(12,dd,true); h.setUint32(14,crc,true); h.setUint32(18,sz,true); h.setUint32(22,sz,true);
+    h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+    parts.push(h,nm,f.data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true);
+    c.setUint16(12,dt,true); c.setUint16(14,dd,true); c.setUint32(16,crc,true); c.setUint32(20,sz,true); c.setUint32(24,sz,true);
+    c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    central.push(c,nm); off+=30+nm.length+sz;
+  }
+  const cd=central.reduce((a,x)=>a+x.byteLength,0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cd,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...central,e],{type:'application/zip'});
+}
+function zipName(n){ const d=new Date(), z=v=>String(v).padStart(2,'0'); return `LUT-Studio_${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}_${n}-photos.zip`; }
 async function downloadAll(){
   const n=S.photos.length; if(!n) return; const bar=$('#expProgress'); bar.style.display='block'; const fill=bar.querySelector('i');
-  $('#btnDl').disabled=$('#btnDlAll').disabled=true;
-  try{ for(let i=0;i<n;i++){ const p=S.photos[i]; $('#btnDlAll').textContent=`Processing ${i+1}/${n}…`; fill.style.width=(i/n*100)+'%'; await sleep(20);
-      const {blob}=await renderExport(p); triggerDownload(blob,fileName(p)); p.exported=sigOf(p); await sleep(350); }
-    fill.style.width='100%'; toast(`${n} photos downloaded`); await sleep(300); $('#dlgExport').close(); }
+  const btn=$('#btnDlAll'); $('#btnDl').disabled=btn.disabled=true;
+  try{
+    const files=[], used=new Set();
+    for(let i=0;i<n;i++){ const p=S.photos[i]; btn.textContent=`Processing ${i+1}/${n}…`; fill.style.width=(i/n*90)+'%'; await sleep(20);
+      const {blob}=await renderExport(p);
+      let name=fileName(p); const dot=name.lastIndexOf('.'); let k=2; while(used.has(name.toLowerCase())) name=name.slice(0,dot)+'-'+(k++)+name.slice(dot); used.add(name.toLowerCase());
+      files.push({name,data:new Uint8Array(await blob.arrayBuffer())}); }
+    btn.textContent='Creating ZIP…'; fill.style.width='95%'; await sleep(20);
+    const zip=makeZip(files), zn=zipName(n); triggerDownload(zip,zn);
+    S.photos.forEach(p=>p.exported=sigOf(p));
+    fill.style.width='100%'; toast(`Saved: ${zn} · ${n} photos · ${mb(zip.size)}`); await sleep(300); $('#dlgExport').close(); }
   catch(e){ console.error(e); toast(e.message,{err:true}); }
-  $('#btnDl').disabled=$('#btnDlAll').disabled=false; bar.style.display='none'; fill.style.width='0'; updateExportUI();
+  $('#btnDl').disabled=btn.disabled=false; bar.style.display='none'; fill.style.width='0'; updateExportUI();
 }
 function updateExportUI(){
   document.querySelectorAll('#fmtSeg button').forEach(b=>{ const on=b.dataset.f===S.fmt; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); });
@@ -935,7 +966,7 @@ function updateExportUI(){
   const p=curPhoto(); if(!p) return; const [w,h]=exportDims(p); const l=lutById(p.lutId);
   $('#expSummary').innerHTML=''; const a=document.createElement('div'); a.textContent=fileName(p);
   const s=document.createElement('small'); s.textContent=`${w}×${h}px · ${l?l.name+' '+Math.round(p.mix*100)+'%':'Original'}`; $('#expSummary').append(a,s);
-  const all=$('#btnDlAll'); all.hidden=S.photos.length<2; all.textContent=`Download all (${S.photos.length})`;
+  const all=$('#btnDlAll'); all.hidden=S.photos.length<2; all.textContent=`Download all as ZIP (${S.photos.length})`;
 }
 function openExport(){ if(!curPhoto()) return; updateExportUI(); $('#dlgExport').showModal(); }
 

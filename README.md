@@ -8,7 +8,7 @@ Apply LUT filters to your photos right in the browser. Add photos, pick a filter
 - **Before / after** in three modes: Split (draggable divider), Side by side, and Result. Press and hold the photo, or hold `B`, to see the original.
 - **Intensity from 0 to 100%.** Click the active filter again to adjust it.
 - **Batch editing.** Each photo keeps its own filter, or you can apply one filter to all of them.
-- **Export** as JPG, PNG, or WebP, at quality up to 100, in original size or Instagram's 1080 px. You can also download all photos at once.
+- **Export** as JPG, PNG, or WebP, at quality up to 100, in original size or Instagram's 1080 px. Download all photos at once as a single ZIP.
 - **Zoom and pan** with scroll, pinch, or double-tap. The canvas background can be dark, neutral gray, or white.
 - **Filter management:** rename, download as `.cube`, or delete (with undo). Imported filters are saved in the user's browser (IndexedDB).
 - **Keyboard shortcuts:** press `?` in the app to see them all.
